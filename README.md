@@ -236,4 +236,7 @@ In the process of writing this simple C2 it was discovered that somewhat similar
 ### References
 * https://windows-internals.com/printdemon-cve-2020-1048/
 
+### Credits
+* Author: @kr3bz
+
 Happy printing!
